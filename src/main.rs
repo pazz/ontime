@@ -2,20 +2,27 @@ use std::fs::File;
 use std::io::{self, Read};
 use std::path::Path;
 
+use clap::Parser;
 use ontime::parser::tg_parser::{NIDListParser, TemporalGraphParser};
 
-fn main() -> io::Result<()> {
-    // Path to the example file
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() != 4 {
-        eprintln!(
-            "Usage: {} <input_file> <target_set> <time_to_reach>",
-            args[0]
-        );
-        std::process::exit(1);
-    }
+/// A solver for punctual reachability games on temporal graphs
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Path to the temporal graph input file
+    input_file: String,
+    
+    /// Target set of nodes (comma-separated node IDs)
+    target_set: String,
+    
+    /// Time to reach the target set
+    time_to_reach: usize,
+}
 
-    let path = Path::new(&args[1]);
+fn main() -> io::Result<()> {
+    let args = Args::parse();
+
+    let path = Path::new(&args.input_file);
     let mut file = File::open(path)?;
     let mut input = String::new();
     file.read_to_string(&mut input)?;
@@ -27,12 +34,12 @@ fn main() -> io::Result<()> {
 
     // parse target
     let parser = NIDListParser::new();
-    let v = parser.parse(&args[2]).expect("Failed to read target");
+    let v = parser.parse(&args.target_set).expect("Failed to read target");
     let target_ids: std::collections::HashSet<_> = v.iter().cloned().collect();
     //println!("{:#?}", target_ids);
 
     // time to reach
-    let k: usize = args[3].parse::<usize>().expect("Failed to parse usize");
+    let k: usize = args.time_to_reach;
 
     // node ownershopt. true --> pLayer one, false --> player two node.
     let nodes_owned_by_reacher: Vec<bool> = graph.node_ownership();
