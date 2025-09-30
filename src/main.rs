@@ -59,7 +59,9 @@ fn main() -> io::Result<()> {
         for node in graph.nodes() {
             match nodes_owned_by_reacher[node] {
                 true => wins_before[node] = graph.successors_at(node, i).any(|s| wins_at[s]),
-                false => wins_before[node] = graph.successors_at(node, i).all(|s| wins_at[s]),
+                false => wins_before[node] = 
+                        graph.successors_at(node, i).next().is_some() 
+                        && graph.successors_at(node, i).all(|s| wins_at[s]);
             }
         }
         wins_at = wins_before.clone();
