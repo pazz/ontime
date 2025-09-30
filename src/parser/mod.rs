@@ -11,10 +11,15 @@ pub enum NodeAttr {
     Owner(bool),
 }
 
+#[derive(Debug, Clone)]
+pub enum EdgeAttr {
+    Formula(Formula),
+}
+
 #[derive(Debug)]
 pub enum ParsedLine {
     Node(String, Vec<NodeAttr>),
-    Edge(String, String, Option<Formula>),
+    Edge(String, String, Vec<EdgeAttr>),
     Empty,
 }
 
@@ -67,14 +72,21 @@ pub fn temporal_graph_from_lines(lines: Vec<ParsedLine>) -> TemporalGraph {
     let mut edges = Vec::new();
 
     for item in &edge_lines {
-        if let ParsedLine::Edge(from_id, to_id, formula) = item {
+        if let ParsedLine::Edge(from_id, to_id, attrs) = item {
             let from = *node_id_map.get(from_id).unwrap();
             let to = *node_id_map.get(to_id).unwrap();
 
-            let formula = match formula {
-                Some(f) => f.clone(),
-                None => Formula::True,
-            };
+            // an edge without explicit times constraint is always available
+            let mut formula = Formula::True;
+
+            // extract the formula from the list of edge attributes if in there
+            for a in attrs {
+                match a {
+                    EdgeAttr::Formula(f) => {
+                        formula = f.clone();
+                    }
+                }
+            }
 
             edges.push(Edge::new(from, to, formula));
         }

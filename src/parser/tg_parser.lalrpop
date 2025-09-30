@@ -1,9 +1,8 @@
 grammar;
 
 use crate::temporal_graphs::TemporalGraph;
-use crate::parser::{ParsedLine, NodeAttr, temporal_graph_from_lines};
+use crate::parser::{ParsedLine, NodeAttr, EdgeAttr, temporal_graph_from_lines};
 
-use crate::formulae::Formula;
 use crate::parser::formula::FormulaParser;
 
 
@@ -21,7 +20,6 @@ match {
     r#"[A-Za-z]+[A-Za-z0-9_]*"# => id_token,
     r"-?[0-9]+" => int_token,
     r#""([^"\\]|\\.)*""# => string_token,
-    r#"\(.*\)"# => formula_token,
     _
 }
 
@@ -37,16 +35,6 @@ QuotedString: String = {
 
 INT: i64 = <s:int_token> => s.parse::<i64>().unwrap();
 
-FORMULA: Formula = {
-    <f:formula_token> => FormulaParser::new().parse(f).unwrap(),
-}
-
-// Node attributes, e.g. "owner(0)"
-NodeAttr: NodeAttr = {
-    "label" "[" <l:QuotedString> "]" => NodeAttr::Label(l),
-    "owner" "[" <i:INT> "]" => NodeAttr::Owner(i%2==0),
-};
-
 
 
 // Helper: a comma-separated list of Ts
@@ -60,18 +48,34 @@ Comma<T>: Vec<T> = {
     }
 };
 
+
+// Node attributes, e.g. name="v0", player=0
+NodeAttr: NodeAttr = {
+    "name" "=" <l:QuotedString> => NodeAttr::Label(l),
+    "player" "=" <i:INT> => NodeAttr::Owner(i%2==0),
+};
+
 // Lists of node and edge attributes
 NodeAttrList = Comma<NodeAttr>;
+
+
+// Edge attributes, so far only times
+EdgeAttr: EdgeAttr = {
+    "times" "=" <f:QuotedString> => EdgeAttr::Formula(FormulaParser::new().parse(&f).unwrap()),
+};
+
+// Lists of node and edge attributes
+EdgeAttrList = Comma<EdgeAttr>;
+
+
 
 // List of Node IDs
 pub NIDList = Comma<ID>;
 
 
 pub Line: ParsedLine = {
-    "node" <id:ID> ":" <attrs:NodeAttrList> => ParsedLine::Node(id, attrs),
-    "node" <id:ID> => ParsedLine::Node(id, vec![]),
-    "edge" <from:ID> "->" <to:ID> => ParsedLine::Edge(from, to, None),
-    "edge" <from:ID> "->" <to:ID> ":" <f:FORMULA> => ParsedLine::Edge(from, to, Some(f)),
+    <id:ID> "[" <attrs:NodeAttrList> "]" ";" => ParsedLine::Node(id, attrs),
+    <from:ID> "->" <to:ID> "[" <attrs:EdgeAttrList> "]" ";" => ParsedLine::Edge(from, to, attrs),
 };
 
 
@@ -79,5 +83,5 @@ pub Line: ParsedLine = {
 //The logic is moved into a helper method that takes parsed lines
 // and turns it into a TemporalGraph.
 pub TemporalGraph: TemporalGraph = {
-    <l:Line*> => temporal_graph_from_lines(l),
+    "digraph" <name:ID> "{" <l:Line*> "}" => temporal_graph_from_lines(l),
 };
